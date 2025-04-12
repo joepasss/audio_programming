@@ -1,5 +1,6 @@
 #include <portsf.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 int
 check_sampletype(psf_stype type)
@@ -33,29 +34,55 @@ check_sampletype(psf_stype type)
     return accept;
 }
 
+void
+read_wav_file(char *filename, PSF_PROPS *props)
+{
+    int sf;
+    sf = psf_sndOpen(filename, props, 0);
+
+    if (sf < 0)
+    {
+        printf("ERROR: unable to open soundfile\n");
+        exit(EXIT_FAILURE);
+    }
+
+    printf("Sample rate = %d\n", props->srate);
+    printf("Number of channels = %d\n", props->chans);
+
+    if (!check_sampletype(props->samptype))
+    {
+        printf("file has unsupported sample type\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
+void
+write_wav_file(char *filename, PSF_PROPS *props)
+{
+    int ofd;
+
+    // define a hi-res 5.1 surround WAVE-EX file. with PEAK chunk
+    props->srate = 96000;
+    props->chans = 6;
+    props->samptype = PSF_SAMP_24;
+    props->format = PSF_WAVE_EX;
+    props->chformat = MC_DOLBY_5_1;
+
+    ofd = psf_sndCreate(filename, props, 1, 0, PSF_CREATE_RDWR);
+
+    if (ofd < 0)
+    {
+        printf("ERROR: unable to create output file\n");
+        exit(EXIT_FAILURE);
+    }
+}
+
 int
 main(void)
 {
 
     PSF_PROPS props;
-    int sf;
-
-    sf = psf_sndOpen("riviera_paradise_intro.wav", &props, 0);
-
-    if (sf < 0)
-    {
-        printf("Error: unable to open soundfile\n");
-        return 1;
-    }
-
-    printf("Sample rate = %d\n", props.srate);
-    printf("Number of channels = %d\n", props.chans);
-
-    if (!check_sampletype(props.samptype))
-    {
-        printf("file has unsupported sample type\n");
-        return 1;
-    }
+    write_wav_file("soundtrack.wav", &props);
 
     return 0;
 }

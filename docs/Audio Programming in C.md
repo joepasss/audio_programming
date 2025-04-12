@@ -138,3 +138,53 @@ printf("number of channels = %d\n", props.chans);
 
 ```
 
+**Opening a Soundfile for Writing**
+
+``` c
+int psf_sndCreate(const char *path, const PSF_PROPS *props,
+                int clip_floats, int minheader, int mode);
+
+/* int clip_floats
+*   used to set the way in which floating-point data is written to the file
+*   the unique aspect of floating-point soundfiles is that the samples can contain over-range values.
+*/
+
+/* int minheader
+*   It is an unfortunate fact of life that many applications fail to deal with WAVE formats that contain optional chunks before the audio data
+*   many older UNIX_originated programs suffer from this
+*   By setting minheader to 1, the soundfile is created with a "minimun header" containing just required format and data chunks
+*   this means that no PEAK data will be written to the file.
+*/
+
+/* int mode
+*   provided to offer some control over read-write access to the file.
+*   the possible modes are defined by the custom enum type psf_create_mode
+*/
+
+// second two are speculative at present!
+typedef enum {PSF_CREATE_RDWR, PSF_CREATE_TEMPORARY, PSF_CREATE_WRONLY} ps_create_mode;
+
+```
+To create a soundfile, we need as for `psf_sndOpen()`, to define a `PSF_PROPS` variable,with the essential difference that this time we have to fill in the format properties explicity
+
+``` c
+int ofd;
+PSF_PROPS props;
+
+/* define a hi-res 5.1 surround WAVE-EX file, with PEAK chunk support */
+
+props.srate = 96000;
+props.chans = 6;
+props.smptype = PSF_SAMP_24;
+props.format = PSF_WAVE_EX;
+props.chformat = MC_DOLBY_5_1;
+
+ofd = psf_sndCreate("soundtrack.wav", &props,1,0, PSF_CREATE_RDWR);
+
+if (ofd < 0) {
+    printf("ERROR: unable to create output file\n");
+    return 1;
+}
+```
+
+
