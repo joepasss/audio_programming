@@ -1,4 +1,4 @@
-PROJECT_NAME = find_freq
+PROJECT_NAME = audio_programming
 
 BUILD_DIR = ./build
 TARGET = $(BUILD_DIR)/$(PROJECT_NAME)
@@ -6,8 +6,8 @@ TARGET = $(BUILD_DIR)/$(PROJECT_NAME)
 TARGET_FILES = src/main.c
 TARGET_HEADERS =
 
-CFLAGS = -Wall -Wextra -pedantic -std=c99
-LDFLAGS = -lm
+CFLAGS = -Wall -Wextra -pedantic -std=c99 -Ilib/portsf/include
+LDFLAGS = -lm lib/portsf/portsf/libportsf.a
 
 $(TARGET): $(TARGET_FILES) | $(BUILD_DIR)
 	$(CC) $(CFLAGS) $(TARGET_FILES) -o $(TARGET) $(LDFLAGS)
