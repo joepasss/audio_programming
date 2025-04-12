@@ -1,23 +1,61 @@
-#include <math.h>
+#include <portsf.h>
 #include <stdio.h>
 
 int
-main()
+check_sampletype(psf_stype type)
 {
-    double semitone_ratio;
-    double c0; /* for frequency of MIDI Note 0 */
-    double c5; /* for frequency of Middle c */
-    double frequency;
-    int midinote;
+    int accept = 1;
 
-    semitone_ratio = pow(2, 1 / 12.0);
-    c5 = 220.0 * pow(semitone_ratio, 3);
-    c0 = c5 * pow(0.5, 5);
+    printf("sample type: ");
+    switch (type)
+    {
+        case (PSF_SAMP_8):
+            printf("8 bit\n");
+            accept = 0;
+            break;
+        case (PSF_SAMP_16):
+            printf("16 bit\n");
+            break;
+        case (PSF_SAMP_24):
+            printf("24 bit\n");
+            break;
+        case (PSF_SAMP_32):
+            printf("32 bit\n");
+            break;
+        case (PSF_SAMP_IEEE_FLOAT):
+            printf("32 bit floating point\n");
+            break;
+        default:
+            printf("unknown\n");
+            accept = 0;
+    }
 
-    midinote = 73; /* C# above A = 440 */
-    frequency = c0 * pow(semitone_ratio, midinote);
+    return accept;
+}
 
-    printf("Midi Note %d has frequency %f\n", midinote, frequency);
+int
+main(void)
+{
+
+    PSF_PROPS props;
+    int sf;
+
+    sf = psf_sndOpen("riviera_paradise_intro.wav", &props, 0);
+
+    if (sf < 0)
+    {
+        printf("Error: unable to open soundfile\n");
+        return 1;
+    }
+
+    printf("Sample rate = %d\n", props.srate);
+    printf("Number of channels = %d\n", props.chans);
+
+    if (!check_sampletype(props.samptype))
+    {
+        printf("file has unsupported sample type\n");
+        return 1;
+    }
 
     return 0;
 }
