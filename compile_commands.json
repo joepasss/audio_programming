@@ -1,0 +1,20 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/cc",
+      "-c",
+      "-Wall",
+      "-Wextra",
+      "-pedantic",
+      "-std=c99",
+      "-Ilib/portsf/include",
+      "lib/portsf/portsf/libportsf.a",
+      "-o",
+      "./build/audio_programming",
+      "src/main.c"
+    ],
+    "directory": "/home/joepasss/study/audio",
+    "file": "/home/joepasss/study/audio/src/main.c",
+    "output": "/home/joepasss/study/audio/build/audio_programming"
+  }
+]
