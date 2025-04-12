@@ -1,0 +1,6 @@
+[submodule "lib/lib/portsf"]
+	path = lib/lib/portsf
+	url = https://github.com/bzgeb/portsf.git
+[submodule "lib/portsf"]
+	path = lib/portsf
+	url = https://github.com/bzgeb/portsf.git
