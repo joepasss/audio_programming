@@ -290,4 +290,25 @@ in a program that performs any processing, this compact loop probably will expan
 
 To change the file and sample format from that of the input file, all that is required is to modify the `PSF_PROPS` structre as desired
 
+### 2.1.7 Streamlining Error Handling -- The `goto` Keyword
+
+The code shown above excludes necessary checks for read and write errors
+
+Even a basic soundfile copy program requests at least three resources (input file, output file, dynamic memory via malloc) Any or all of these request can fail we have `free` these resources
+
+``` c
+if (sndWriteFloatFrames(ofd, frame, 1) != 1)
+    goto cleanup;
+
+/* lots of codes */
+
+cleanup:
+if (frame)
+    free (frame);
+```
+
+The  lavel is also referred to as a "jump target" and takes the form of a unique name followed by a colon.
+
+It can be placed anywhere, but by convention, and not least to promote readability, it is always placed at tha start of a line.
+
 
