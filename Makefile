@@ -1,4 +1,4 @@
-PROJECT_NAME = audio_programming
+PROJECT_NAME = sf2float
 
 BUILD_DIR = ./build
 TARGET = $(BUILD_DIR)/$(PROJECT_NAME)

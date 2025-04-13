@@ -1,88 +1,152 @@
+/*
+ * convert soundfile to floats
+ */
+
 #include <portsf.h>
 #include <stdio.h>
 #include <stdlib.h>
 
+enum
+{
+    ARG_PROGNAME,
+    ARG_INFILE,
+    ARG_OUTFILE,
+    ARG_NARGS
+};
+
 int
-check_sampletype(psf_stype type)
+main(int argc, char *argv[])
 {
-    int accept = 1;
+    PSF_PROPS props;
+    long framesread, totalread;
 
-    printf("sample type: ");
-    switch (type)
+    /* init all resource vars to deafult states */
+    int ifd = -1, ofd = -1;
+    int error = 0;
+    psf_format outformat = PSF_FMT_UNKNOWN;
+    PSF_CHPEAK *peaks = NULL;
+    float *frame = NULL;
+
+    printf("SF2FLOAT: convert soundfile to floats format\n");
+
+    if (argc < ARG_NARGS)
     {
-        case (PSF_SAMP_8):
-            printf("8 bit\n");
-            accept = 0;
-            break;
-        case (PSF_SAMP_16):
-            printf("16 bit\n");
-            break;
-        case (PSF_SAMP_24):
-            printf("24 bit\n");
-            break;
-        case (PSF_SAMP_32):
-            printf("32 bit\n");
-            break;
-        case (PSF_SAMP_IEEE_FLOAT):
-            printf("32 bit floating point\n");
-            break;
-        default:
-            printf("unknown\n");
-            accept = 0;
+        printf("insufficient arguments.\n"
+               "usage:\n\t%s infile outfile\n",
+               argv[0]);
+
+        return 1;
     }
 
-    return accept;
-}
-
-void
-read_wav_file(char *filename, PSF_PROPS *props)
-{
-    int sf;
-    sf = psf_sndOpen(filename, props, 0);
-
-    if (sf < 0)
+    if (psf_init())
     {
-        printf("ERROR: unable to open soundfile\n");
-        exit(EXIT_FAILURE);
+        printf("unable to start portsf\n");
+        return 1;
     }
 
-    printf("Sample rate = %d\n", props->srate);
-    printf("Number of channels = %d\n", props->chans);
-
-    if (!check_sampletype(props->samptype))
+    ifd = psf_sndOpen(argv[ARG_INFILE], &props, 0);
+    if (ifd < 0)
     {
-        printf("file has unsupported sample type\n");
-        exit(EXIT_FAILURE);
+        printf("Error: unable to open infile %s\n", argv[ARG_INFILE]);
+        return 1;
     }
-}
 
-void
-write_wav_file(char *filename, PSF_PROPS *props)
-{
-    int ofd;
+    if (props.samptype == PSF_SAMP_IEEE_FLOAT)
+    {
+        printf("Info: infile is already in floats format.\n");
+    }
 
-    // define a hi-res 5.1 surround WAVE-EX file. with PEAK chunk
-    props->srate = 96000;
-    props->chans = 6;
-    props->samptype = PSF_SAMP_24;
-    props->format = PSF_WAVE_EX;
-    props->chformat = MC_DOLBY_5_1;
+    props.samptype = PSF_SAMP_IEEE_FLOAT;
 
-    ofd = psf_sndCreate(filename, props, 1, 0, PSF_CREATE_RDWR);
+    outformat = psf_getFormatExt(argv[ARG_OUTFILE]);
+    if (outformat == PSF_FMT_UNKNOWN)
+    {
+        printf("outfile name %s has unknown format.\n"
+               "Use any of .wav, .aiff, .aif, .afc, .aifc\n",
+               argv[ARG_OUTFILE]);
 
+        error++;
+        goto exit;
+    }
+    props.format = outformat;
+
+    ofd = psf_sndCreate(argv[2], &props, 0, 0, PSF_CREATE_RDWR);
     if (ofd < 0)
     {
-        printf("ERROR: unable to create output file\n");
-        exit(EXIT_FAILURE);
+        printf("ERROR: unable to create outfile %s\n", argv[ARG_OUTFILE]);
+        error++;
+        goto exit;
     }
-}
 
-int
-main(void)
-{
+    frame = (float *)malloc(props.chans * sizeof(float));
+    if (frame == NULL)
+    {
+        puts("No memory!\n");
+        error++;
+        goto exit;
+    }
 
-    PSF_PROPS props;
-    write_wav_file("soundtrack.wav", &props);
+    peaks = (PSF_CHPEAK *)malloc(props.chans * sizeof(PSF_CHPEAK));
+    if (peaks == NULL)
+    {
+        puts("No memory!\n");
+        error++;
+        goto exit;
+    }
+
+    printf("copying ...\n");
+
+    framesread = psf_sndReadFloatFrames(ifd, frame, 1);
+    totalread = 0;
+    while (framesread == 1)
+    {
+        totalread++;
+        if (psf_sndWriteFloatFrames(ofd, frame, 1) != 1)
+        {
+            printf("Error writing to outfile\n");
+            error++;
+            break;
+        }
+
+        /* do any processing here! */
+        framesread = psf_sndReadFloatFrames(ifd, frame, 1);
+    }
+
+    if (framesread < 0)
+    {
+        printf("Error reading infile. Outfile is incomplete.\n");
+        error++;
+    }
+    else
+        printf("Done. %ld sample frames copied to %s\n", totalread,
+               argv[ARG_OUTFILE]);
+
+    if (psf_sndReadPeaks(ofd, peaks, NULL) > 0)
+    {
+        long i;
+        double peaktime;
+
+        printf("PEAK information:\n");
+        for (i = 0; i < props.chans; i++)
+        {
+            peaktime = (double)peaks[i].pos / props.srate;
+
+            printf("CH %ld:\t%.4f at %.4f secs\n", i + 1, peaks[i].val,
+                   peaktime);
+        }
+    }
+
+exit:
+    if (ifd >= 0)
+        psf_sndClose(ifd);
+    if (ofd >= 0)
+        psf_sndClose(ofd);
+    if (frame)
+        free(frame);
+    if (peaks)
+        free(peaks);
+    psf_finish();
+    return error;
 
     return 0;
 }
