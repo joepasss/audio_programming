@@ -187,4 +187,107 @@ if (ofd < 0) {
 }
 ```
 
+**Setting a File format from the Name**
+
+A common requirement among users who have to move soundfiles between platforms (e.g. from Mac to a PC) is to convert from one format to another for example, from WAVE to AIFF.
+
+But who does the user indicate this? In command-line applications the simplest and best method is for the user to specify the format by using a filename with the appropriate file extension; `.wav`, `.aiff`, `.aifc`, etc. With this approach, there  is no danger of a user specifying 
+
+The `portsf` API supports this system by means of a function that returns the file formaat from the given filename:
+
+``` c
+psf_format format;
+format = psf_getFormatExt("soundtrack.wav")
+```
+
+This returns a value of type `psf_format`, which can therefore be assigned directly to the appropriate element of the `PSF_PROPS` structure:
+
+```c
+props.format = format;
+```
+
+Note that this function will return the value `PSF_FMT_UNKNOWN` if an unsupported file extension is used
+
+**Closing Soundfiles (and Recording Peak Sample Values with the PEAK Chunk)**
+
+Having opened a soundfile, we will have to close it again at some point.
+
+``` c
+int psf_sndClose(int sfd);
+```
+
+The return value is used to indicate any error arising from closing the file.
+
+As sample frames are written to disk, the maximum value per channel is automatically tracked, so that when the file is closed, the PEAK data can be written to the header.
+
+For this to happen, `minheader` in `psf_sndCreate` must set to 0
+
+support access to this information, to hold the peak data for one channel.
+
+``` c
+typedef struct psf_chpeak {
+    float val;
+    unsigned long pos;
+} PSF_CHPEAK;
+```
+
+The library necessarily includes a function to read the current PEAK data from the file:
+
+``` c
+long psf_sndReadPeaks(int sfd, PSF_CHPEAK peakdata[], long *peaktime);
+```
+
+This functio ntakes a soundfile descriptor (as returned from `psf_sndCreate`), and a pointer to an array of `PSF_CHPEAK` structures. It is the responsibility of the user to ensure that the array is at least large enough to contain the data for each channel in the file (e.g. as given in props.chans):
+
+``` c
+PSF_CHPEAK peaks[6];
+long peaks_valid, peaktime;
+peaks_valid = psf_sndReadPeaks(ofd, peaks, &peaktime);
+```
+
+in most cases, the number of channels in a file will have been chosen by the user, so that you will have to allocate space for the peaks array using `malloc`
+
+``` c
+PSF_CHPEAK *peaks;
+peaks = (PSF_CHPEAK *) malloc(props.chans * sizeof(PSF_CHPEAK));
+```
+
+The `peaktime` value is rarely needed and can generally be ignored.
+
+### 2.1.6 Reading and Writing -- The Sample Frame
+
+The working unit in `portsf` is the multi-channel sample frame. This means that it is not posible, for example, to read just the first (left-channel) sample of a stereo file. This would in all but the most abnormal circumstances be an error, and `portsf` prevents the user from making such errors.
+
+the library automaticaly performs all the low-level calculations and conversions required to read sample frames (of any supported type) from a soundfile into the user's working sample buffer.
+
+the recommanded sample format is the 32-bit float, into which 24-bit sampels can be converted withhout loss of percision:
+
+``` c
+long psf_sndReadFloatFrames(int sfd, float *buf, DWORD nFrames);
+long psf_sndWriteFloatFrames(int sfd, const float *buf, DWORD nFrames);
+
+// The functions both return the value -1 for an error
+// psf_sndReadFloatFrames a return value than nFrames will indicate that the end of the file has been reached.
+```
+
+``` c
+float frame * = (float *) malloc(props.chans * sizeof(float));
+
+/* copy file one (multi-channel) frame at a time */
+framesread = psf_sndReadFloatFrames(ifd, frame, 1);
+
+while (framesread == 1) {
+    // SOME PROCESSING
+
+    psf_sndWriteFloatFrames(ofd, frame, 1);
+    framesread = psf_sndReadFloatFrames(ifd, frame, 1);
+}
+```
+
+This will copy a soundfile having any number of channels, and in any of the supported sample formats, while also tracking the PEAK value and position for each channel.
+
+in a program that performs any processing, this compact loop probably will expand to accommodate code to apply filtering or other signal processing.
+
+To change the file and sample format from that of the input file, all that is required is to modify the `PSF_PROPS` structre as desired
+
 
